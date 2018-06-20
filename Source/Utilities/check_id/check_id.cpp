@@ -67,6 +67,11 @@
 #endif
 #include <Eden/EdenGLFont.h>
 
+// zhenyi
+//extern "c" {
+//	#include <ARX/ARVideo/video.h>
+//}
+
 
 // ============================================================================
 //	Constants
