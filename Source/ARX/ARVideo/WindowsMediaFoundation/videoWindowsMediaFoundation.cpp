@@ -279,8 +279,13 @@ AR2VideoParamWinMFT *ar2VideoOpenWinMF(const char *config)
                 } else if (strcmp(b+8, "420f") == 0 || strcmp(b+8, "NV12") == 0) {
                     vid->format = AR_PIXEL_FORMAT_420f;
                     ARLOGi("Requesting images in 420f/NV12 format.\n");
-                } else {
-                    ARLOGe("Ignoring request for unsupported video format '%s'.\n", b+8);
+				}
+				else if (strcmp(b + 8, "MONO") == 0) {
+					vid->format = AR_PIXEL_FORMAT_MONO;
+					ARLOGi("Requesting images in MONO format.\n");
+				}
+				else {
+                    ARLOGe("Ignoring request for unsupported video format ??? '%s'.\n", b+8);
                 }
 			} else if( strncmp( b, "-width=", 7 ) == 0 ) {
                 if( sscanf( &b[7], "%d", &vid->width ) == 0 ) err_i = 1;

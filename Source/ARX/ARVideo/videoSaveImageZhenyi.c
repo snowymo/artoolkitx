@@ -35,7 +35,7 @@
  */
 
 #include <ARX/ARVideo/video.h>
-#if !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
+//#if !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
 
 #include <stdio.h>
 #include <string.h>
@@ -214,4 +214,4 @@ int arVideoSaveImageJPEG(int w, int h, AR_PIXEL_FORMAT pixFormat, ARUint8 *pixel
 
 }
 
-#endif // !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
+//#endif // !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
