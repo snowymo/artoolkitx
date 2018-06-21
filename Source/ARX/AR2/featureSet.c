@@ -178,6 +178,9 @@ int ar2FreeFeatureSet( AR2FeatureSetT **featureSet )
 
 // zhenyi
 
+#include <math.h>
+#include <ARX/AR2/config.h>
+
 static int make_template(ARUint8 *imageBW, int xsize, int ysize,
 	int cx, int cy, int ts1, int ts2, float  sd_thresh,
 	float  *template, float  *vlen);
@@ -185,6 +188,166 @@ static int make_template(ARUint8 *imageBW, int xsize, int ysize,
 static int get_similarity(ARUint8 *imageBW, int xsize, int ysize,
 	float  *template, float  vlen, int ts1, int ts2,
 	int cx, int cy, float  *sim);
+
+
+int ar2FreeFeatureMap(AR2FeatureMapT *featureMap)
+{
+	free(featureMap->map);
+	free(featureMap);
+
+	return 0;
+}
+
+
+AR2FeatureMapT *ar2GenFeatureMap(AR2ImageT *image,
+	int ts1, int ts2,
+	int search_size1, int search_size2,
+	float  max_sim_thresh, float  sd_thresh)
+{
+	AR2FeatureMapT  *featureMap;
+	float           *fimage, *fp;
+	float           *fimage2, *fp2;
+	float           *template;
+	ARUint8         *p;
+	float           dx, dy;
+	int             xsize, ysize;
+	int             hist[1000], sum;
+	int             i, j, k;
+	float           vlen;
+	float           max, sim;
+	int             ii, jj;
+
+	xsize = image->xsize;
+	ysize = image->ysize;
+	arMalloc(fimage, float, xsize*ysize);
+	arMalloc(fimage2, float, xsize*ysize);
+	arMalloc(template, float, (ts1 + ts2 + 1)*(ts1 + ts2 + 1));
+
+
+	fp2 = fimage2;
+#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
+	p = image->imgBWBlur[1];
+#else
+	p = image->imgBW;
+#endif
+	for (i = 0; i < xsize; i++) { *(fp2++) = -1.0f; p++; }
+	for (j = 1; j < ysize - 1; j++) {
+		*(fp2++) = -1.0f; p++;
+		for (i = 1; i < xsize - 1; i++) {
+			dx = ((int)(*(p - xsize + 1)) - (int)(*(p - xsize - 1))
+				+ (int)(*(p + 1)) - (int)(*(p - 1))
+				+ (int)(*(p + xsize + 1)) - (int)(*(p + xsize - 1))) / (float)(3.0f * 256);
+			dy = ((int)(*(p + xsize + 1)) - (int)(*(p - xsize + 1))
+				+ (int)(*(p + xsize)) - (int)(*(p - xsize))
+				+ (int)(*(p + xsize - 1)) - (int)(*(p - xsize - 1))) / (float)(3.0f * 256);
+			*(fp2++) = (float)sqrtf((dx*dx + dy*dy) / (float)2.0f);
+			p++;
+		}
+		*(fp2++) = -1.0f; p++;
+	}
+	for (i = 0; i < xsize; i++) { *(fp2++) = -1.0f; p++; }
+
+
+	sum = 0;
+	for (i = 0; i < 1000; i++) hist[i] = 0;
+	fp2 = fimage2 + xsize + 1;
+	for (j = 1; j < ysize - 1; j++) {
+		for (i = 1; i < xsize - 1; i++) {
+			if (*fp2 > *(fp2 - 1) && *fp2 > *(fp2 + 1) && *fp2 > *(fp2 - xsize) && *fp2 > *(fp2 + xsize)) {
+				k = (int)(*fp2 * 1000.0f);
+				if (k > 999) k = 999;
+				if (k < 0) k = 0;
+				hist[k]++;
+				sum++;
+			}
+			fp2++;
+		}
+		fp2 += 2;
+	}
+	j = 0;
+	for (i = 999; i >= 0; i--) {
+		j += hist[i];
+		if ((float)j / (float)(xsize*ysize) >= 0.02f) break;
+		//if( (float )j / (float )(xsize*ysize) >= 0.2f ) break;
+	}
+	k = i;
+	ARLOGi("         ImageSize = %7d[pixel]\n", xsize*ysize);
+	ARLOGi("Extracted features = %7d[pixel]\n", sum);
+	ARLOGi(" Filtered features = %7d[pixel]\n", j);
+
+
+	fp = fimage;
+	fp2 = fimage2;
+	for (i = 0; i < xsize; i++) {
+		*(fp++) = 1.0f;
+		fp2++;
+	}
+	for (j = 1; j < ysize - 1; j++) {
+		ARLOGi("\r%4d/%4d.", j + 1, ysize); fflush(stdout);
+		*(fp++) = 1.0f;
+		fp2++;
+		for (i = 1; i < xsize - 1; i++) {
+			if (*fp2 <= *(fp2 - 1) || *fp2 <= *(fp2 + 1) || *fp2 <= *(fp2 - xsize) || *fp2 <= *(fp2 + xsize)) {
+				*(fp++) = 1.0f;
+				fp2++;
+				continue;
+			}
+			if ((int)(*fp2 * 1000) < k) {
+				*(fp++) = 1.0f;
+				fp2++;
+				continue;
+			}
+#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
+			if (make_template(image->imgBWBlur[1], xsize, ysize, i, j, ts1, ts2, sd_thresh, template, &vlen) < 0) {
+#else
+			if (make_template(image->imgBW, xsize, ysize, i, j, ts1, ts2, sd_thresh, template, &vlen) < 0) {
+#endif
+				*(fp++) = 1.0f;
+				fp2++;
+				continue;
+			}
+
+			max = -1.0f;
+			for (jj = -search_size1; jj <= search_size1; jj++) {
+				for (ii = -search_size1; ii <= search_size1; ii++) {
+
+					if (ii*ii + jj*jj <= search_size2*search_size2) continue;
+					//if( jj >= -search_size2 && jj <= search_size2 && ii >= -search_size2 && ii <= search_size2 ) continue;
+
+#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
+					if (get_similarity(image->imgBWBlur[1], xsize, ysize, template, vlen, ts1, ts2, i + ii, j + jj, &sim) < 0) continue;
+#else
+					if (get_similarity(image->imgBW, xsize, ysize, template, vlen, ts1, ts2, i + ii, j + jj, &sim) < 0) continue;
+#endif
+
+					if (sim > max) {
+						max = sim;
+						if (max > max_sim_thresh) break;
+					}
+				}
+				if (max > max_sim_thresh) break;
+			}
+			*(fp++) = (float)max;
+			fp2++;
+			}
+		*(fp++) = 1.0f;
+		fp2++;
+		}
+	for (i = 0; i < xsize; i++) {
+		*(fp++) = 1.0f;
+		fp2++;
+	}
+	ARLOGi("\n");
+	free(fimage2);
+	free(template);
+
+	arMalloc(featureMap, AR2FeatureMapT, 1);
+	featureMap->map = fimage;
+	featureMap->xsize = xsize;
+	featureMap->ysize = ysize;
+
+	return featureMap;
+	}
 
 AR2FeatureCoordT *ar2SelectFeature2(AR2ImageT *image, AR2FeatureMapT *featureMap,
 	int ts1, int ts2, int search_size2, int occ_size,
@@ -329,260 +492,102 @@ AR2FeatureCoordT *ar2SelectFeature2(AR2ImageT *image, AR2FeatureMapT *featureMap
 	return coord;
 	}
 
-	AR2FeatureMapT *ar2GenFeatureMap(AR2ImageT *image,
-		int ts1, int ts2,
-		int search_size1, int search_size2,
-		float  max_sim_thresh, float  sd_thresh)
-	{
-		AR2FeatureMapT  *featureMap;
-		float           *fimage, *fp;
-		float           *fimage2, *fp2;
-		float           *template;
-		ARUint8         *p;
-		float           dx, dy;
-		int             xsize, ysize;
-		int             hist[1000], sum;
-		int             i, j, k;
-		float           vlen;
-		float           max, sim;
-		int             ii, jj;
+static int make_template(ARUint8 *imageBW, int xsize, int ysize,
+	int cx, int cy, int ts1, int ts2, float  sd_thresh,
+	float *template, float *vlen)
+{
+	ARUint8  *ip;
+	float    *tp;
+	float     vlen1, ave;
+	int       i, j;
 
-		xsize = image->xsize;
-		ysize = image->ysize;
-		arMalloc(fimage, float, xsize*ysize);
-		arMalloc(fimage2, float, xsize*ysize);
-		arMalloc(template, float, (ts1 + ts2 + 1)*(ts1 + ts2 + 1));
+	if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
 
+	ave = 0.0f;
+	for (j = -ts1; j <= ts2; j++) {
+		ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
+		for (i = -ts1; i <= ts2; i++) ave += *(ip++);
+	}
+	ave /= (ts1 + ts2 + 1)*(ts1 + ts2 + 1);
 
-		fp2 = fimage2;
-#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
-		p = image->imgBWBlur[1];
-#else
-		p = image->imgBW;
-#endif
-		for (i = 0; i < xsize; i++) { *(fp2++) = -1.0f; p++; }
-		for (j = 1; j < ysize - 1; j++) {
-			*(fp2++) = -1.0f; p++;
-			for (i = 1; i < xsize - 1; i++) {
-				dx = ((int)(*(p - xsize + 1)) - (int)(*(p - xsize - 1))
-					+ (int)(*(p + 1)) - (int)(*(p - 1))
-					+ (int)(*(p + xsize + 1)) - (int)(*(p + xsize - 1))) / (float)(3.0f * 256);
-				dy = ((int)(*(p + xsize + 1)) - (int)(*(p - xsize + 1))
-					+ (int)(*(p + xsize)) - (int)(*(p - xsize))
-					+ (int)(*(p + xsize - 1)) - (int)(*(p - xsize - 1))) / (float)(3.0f * 256);
-				*(fp2++) = (float)sqrtf((dx*dx + dy*dy) / (float)2.0f);
-				p++;
-			}
-			*(fp2++) = -1.0f; p++;
+	tp = template;
+	vlen1 = 0.0f;
+	for (j = -ts1; j <= ts2; j++) {
+		ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
+		for (i = -ts1; i <= ts2; i++) {
+			*tp = (float)(*(ip++)) - ave;
+			vlen1 += *tp * *tp;
+			tp++;
 		}
-		for (i = 0; i < xsize; i++) { *(fp2++) = -1.0f; p++; }
+	}
 
+	if (vlen1 == 0.0f) return -1;
+	if (vlen1 / ((ts1 + ts2 + 1)*(ts1 + ts2 + 1)) < sd_thresh*sd_thresh) return -1;
 
-		sum = 0;
-		for (i = 0; i < 1000; i++) hist[i] = 0;
-		fp2 = fimage2 + xsize + 1;
-		for (j = 1; j < ysize - 1; j++) {
-			for (i = 1; i < xsize - 1; i++) {
-				if (*fp2 > *(fp2 - 1) && *fp2 > *(fp2 + 1) && *fp2 > *(fp2 - xsize) && *fp2 > *(fp2 + xsize)) {
-					k = (int)(*fp2 * 1000.0f);
-					if (k > 999) k = 999;
-					if (k < 0) k = 0;
-					hist[k]++;
-					sum++;
-				}
-				fp2++;
-			}
-			fp2 += 2;
-		}
-		j = 0;
-		for (i = 999; i >= 0; i--) {
-			j += hist[i];
-			if ((float)j / (float)(xsize*ysize) >= 0.02f) break;
-			//if( (float )j / (float )(xsize*ysize) >= 0.2f ) break;
-		}
-		k = i;
-		ARLOGi("         ImageSize = %7d[pixel]\n", xsize*ysize);
-		ARLOGi("Extracted features = %7d[pixel]\n", sum);
-		ARLOGi(" Filtered features = %7d[pixel]\n", j);
+	*vlen = sqrtf(vlen1);
 
-
-		fp = fimage;
-		fp2 = fimage2;
-		for (i = 0; i < xsize; i++) {
-			*(fp++) = 1.0f;
-			fp2++;
-		}
-		for (j = 1; j < ysize - 1; j++) {
-			ARLOGi("\r%4d/%4d.", j + 1, ysize); fflush(stdout);
-			*(fp++) = 1.0f;
-			fp2++;
-			for (i = 1; i < xsize - 1; i++) {
-				if (*fp2 <= *(fp2 - 1) || *fp2 <= *(fp2 + 1) || *fp2 <= *(fp2 - xsize) || *fp2 <= *(fp2 + xsize)) {
-					*(fp++) = 1.0f;
-					fp2++;
-					continue;
-				}
-				if ((int)(*fp2 * 1000) < k) {
-					*(fp++) = 1.0f;
-					fp2++;
-					continue;
-				}
-#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
-				if (make_template(image->imgBWBlur[1], xsize, ysize, i, j, ts1, ts2, sd_thresh, template, &vlen) < 0) {
-#else
-				if (make_template(image->imgBW, xsize, ysize, i, j, ts1, ts2, sd_thresh, template, &vlen) < 0) {
-#endif
-					*(fp++) = 1.0f;
-					fp2++;
-					continue;
-				}
-
-				max = -1.0f;
-				for (jj = -search_size1; jj <= search_size1; jj++) {
-					for (ii = -search_size1; ii <= search_size1; ii++) {
-
-						if (ii*ii + jj*jj <= search_size2*search_size2) continue;
-						//if( jj >= -search_size2 && jj <= search_size2 && ii >= -search_size2 && ii <= search_size2 ) continue;
-
-#if AR2_CAPABLE_ADAPTIVE_TEMPLATE
-						if (get_similarity(image->imgBWBlur[1], xsize, ysize, template, vlen, ts1, ts2, i + ii, j + jj, &sim) < 0) continue;
-#else
-						if (get_similarity(image->imgBW, xsize, ysize, template, vlen, ts1, ts2, i + ii, j + jj, &sim) < 0) continue;
-#endif
-
-						if (sim > max) {
-							max = sim;
-							if (max > max_sim_thresh) break;
-						}
-					}
-					if (max > max_sim_thresh) break;
-				}
-				*(fp++) = (float)max;
-				fp2++;
-				}
-			*(fp++) = 1.0f;
-			fp2++;
-			}
-		for (i = 0; i < xsize; i++) {
-			*(fp++) = 1.0f;
-			fp2++;
-		}
-		ARLOGi("\n");
-		free(fimage2);
-		free(template);
-
-		arMalloc(featureMap, AR2FeatureMapT, 1);
-		featureMap->map = fimage;
-		featureMap->xsize = xsize;
-		featureMap->ysize = ysize;
-
-		return featureMap;
-		}
-
-		int ar2FreeFeatureMap(AR2FeatureMapT *featureMap)
-		{
-			free(featureMap->map);
-			free(featureMap);
-
-			return 0;
-		}
-
-		static int make_template(ARUint8 *imageBW, int xsize, int ysize,
-			int cx, int cy, int ts1, int ts2, float  sd_thresh,
-			float *template, float *vlen)
-		{
-			ARUint8  *ip;
-			float    *tp;
-			float     vlen1, ave;
-			int       i, j;
-
-			if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
-
-			ave = 0.0f;
-			for (j = -ts1; j <= ts2; j++) {
-				ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
-				for (i = -ts1; i <= ts2; i++) ave += *(ip++);
-			}
-			ave /= (ts1 + ts2 + 1)*(ts1 + ts2 + 1);
-
-			tp = template;
-			vlen1 = 0.0f;
-			for (j = -ts1; j <= ts2; j++) {
-				ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
-				for (i = -ts1; i <= ts2; i++) {
-					*tp = (float)(*(ip++)) - ave;
-					vlen1 += *tp * *tp;
-					tp++;
-				}
-			}
-
-			if (vlen1 == 0.0f) return -1;
-			if (vlen1 / ((ts1 + ts2 + 1)*(ts1 + ts2 + 1)) < sd_thresh*sd_thresh) return -1;
-
-			*vlen = sqrtf(vlen1);
-
-			return 0;
-		}
+	return 0;
+}
 
 static int get_similarity(ARUint8 *imageBW, int xsize, int ysize,
-			float *template, float vlen, int ts1, int ts2,
-			int cx, int cy, float  *sim)
-		{
+	float *template, float vlen, int ts1, int ts2,
+	int cx, int cy, float  *sim)
+{
 #if 0
-			ARUint8   *ip;
-			float     *tp;
-			float     ave2, w1, w2, vlen2;
-			int       i, j;
+	ARUint8   *ip;
+	float     *tp;
+	float     ave2, w1, w2, vlen2;
+	int       i, j;
 
-			if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
+	if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
 
-			ave2 = 0.0f;
-			for (j = -ts1; j <= ts2; j++) {
-				ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
-				for (i = -ts1; i <= ts2; i++) ave2 += *(ip++);
-			}
-			ave2 /= (ts1 + ts2 + 1)*(ts1 + ts2 + 1);
+	ave2 = 0.0f;
+	for (j = -ts1; j <= ts2; j++) {
+		ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
+		for (i = -ts1; i <= ts2; i++) ave2 += *(ip++);
+	}
+	ave2 /= (ts1 + ts2 + 1)*(ts1 + ts2 + 1);
 
-			tp = template;
-			w1 = 0.0f;
-			vlen2 = 0.0f;
-			for (j = -ts1; j <= ts2; j++) {
-				ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
-				for (i = -ts1; i <= ts2; i++) {
-					w2 = (float)(*(ip++)) - ave2;
-					vlen2 += w2 * w2;
-					w1 += *(tp++) * w2;
-				}
-			}
-			if (vlen2 == 0.0f) return -1;
+	tp = template;
+	w1 = 0.0f;
+	vlen2 = 0.0f;
+	for (j = -ts1; j <= ts2; j++) {
+		ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
+		for (i = -ts1; i <= ts2; i++) {
+			w2 = (float)(*(ip++)) - ave2;
+			vlen2 += w2 * w2;
+			w1 += *(tp++) * w2;
+		}
+	}
+	if (vlen2 == 0.0f) return -1;
 
-			vlen2 = sqrtf(vlen2);
-			*sim = w1 / (vlen * vlen2);
+	vlen2 = sqrtf(vlen2);
+	*sim = w1 / (vlen * vlen2);
 #else
-			ARUint8   *ip;
-			float     *tp;
-			float     sx, sxx, sxy;
-			float     vlen2;
-			int       i, j;
+	ARUint8   *ip;
+	float     *tp;
+	float     sx, sxx, sxy;
+	float     vlen2;
+	int       i, j;
 
-			if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
+	if (cy - ts1 < 0 || cy + ts2 >= ysize || cx - ts1 < 0 || cx + ts2 >= xsize) return -1;
 
-			tp = template;
-			sx = sxx = sxy = 0.0f;
-			for (j = -ts1; j <= ts2; j++) {
-				ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
-				for (i = -ts1; i <= ts2; i++) {
-					sx += *ip;
-					sxx += *ip * *ip;
-					sxy += *(ip++) * *(tp++);
-				}
-			}
-			vlen2 = sxx - sx*sx / ((ts1 + ts2 + 1)*(ts1 + ts2 + 1));
-			if (vlen2 == 0.0f) return -1;
-			vlen2 = sqrtf(vlen2);
+	tp = template;
+	sx = sxx = sxy = 0.0f;
+	for (j = -ts1; j <= ts2; j++) {
+		ip = &imageBW[(cy + j)*xsize + (cx - ts1)];
+		for (i = -ts1; i <= ts2; i++) {
+			sx += *ip;
+			sxx += *ip * *ip;
+			sxy += *(ip++) * *(tp++);
+		}
+	}
+	vlen2 = sxx - sx*sx / ((ts1 + ts2 + 1)*(ts1 + ts2 + 1));
+	if (vlen2 == 0.0f) return -1;
+	vlen2 = sqrtf(vlen2);
 
-			*sim = sxy / (vlen * vlen2);
+	*sim = sxy / (vlen * vlen2);
 #endif
 
-			return 0;
-		}
+	return 0;
+}

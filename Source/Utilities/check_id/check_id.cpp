@@ -67,11 +67,7 @@
 #endif
 #include <Eden/EdenGLFont.h>
 
-// zhenyi
-//extern "c" {
-//	#include <ARX/ARVideo/video.h>
-//}
-
+#include <iostream>
 
 // ============================================================================
 //	Constants
@@ -119,7 +115,7 @@ static const char *vconf = vconfRGB;
 static ARdouble gPattRatio = (ARdouble)AR_PATT_RATIO;
 static AR_MATRIX_CODE_TYPE gMatrixCodeType = AR_MATRIX_CODE_TYPE_DEFAULT;
 static int gLabelingMode = AR_DEFAULT_LABELING_MODE;
-static int gPatternDetectionMode = AR_DEFAULT_PATTERN_DETECTION_MODE;
+static int gPatternDetectionMode = AR_MATRIX_CODE_DETECTION;
 static int gPattSize = AR_PATT_SIZE1;
 static int gPattCountMax = AR_PATT_NUM_MAX;
 
@@ -329,6 +325,8 @@ int main(int argc, char *argv[])
                     for (j = 0; j < markerNum; j++) if (markerInfo[j].area > area) {
                         area = markerInfo[j].area;
                         biggestMarker = j;
+						// zhenyi
+						std::cout << "found marker " << markerInfo[j].id << "\n";
                     }
                     if (area >= AR_AREA_MIN) {
                         

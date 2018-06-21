@@ -48,8 +48,8 @@ set(SOURCE
     arPattCreateHandle.c
     arPattGetID.c
     arPattLoad.c
-    #zhenyi
-	#arPattSave.c
+	# zhenyi
+    # arPattSave.c
     arUtil.c
     icpCalibStereo.c
     icpCore.c
