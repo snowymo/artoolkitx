@@ -232,8 +232,8 @@ int main(int argc, char *argv[])
     EdenGLFontSetSize(FONT_SIZE);
 
 	// zhenyi: take care of the pgm to jpg
-	std::string imagePrefix = "HIRO";
-	std::string imageName = imagePrefix + ".jpg", jpgName = imagePrefix+"-" + ".jpg";
+	std::string imagePrefix = "000000";
+	std::string imageName = imagePrefix + ".pgm", jpgName = imagePrefix+"-" + ".jpg";
 	int width, height, n;
 	unsigned char * image = stbi_load(imageName.c_str(), &width, &height, &n, 0);
 	//stbi_write_png(jpgName.c_str(), width, height, n, image, n * width);
