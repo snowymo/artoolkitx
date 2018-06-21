@@ -80,8 +80,6 @@ set(SOURCE
     ../main.cpp
     ../draw.h
     ../draw.cpp
-	../ImageTracker.h
-    ../ImageTracker.cpp
     ${RESOURCES}
     ${FRAMEWORKS}
 )

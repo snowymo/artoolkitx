@@ -152,7 +152,8 @@
                          allocate large structures on the stack; 
                          correct channel count for PNG & BMP
       2.10  (2016-01-22) avoid warning introduced in 2.09
-      2.09  (2016-01-16) 16-bit TGA; comments in PNM files; STBI_REALLOC_SIZED
+      2.09  (2016-01-16) 16-bit TGA; comments in 
+ files; STBI_REALLOC_SIZED
       2.08  (2015-09-13) fix to 2.07 cleanup, reading RGB PSD as RGBA
       2.07  (2015-09-13) partial animated GIF support
                          limited 16-bit PSD support

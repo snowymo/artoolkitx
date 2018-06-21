@@ -1014,8 +1014,8 @@ AR_EXTERN int arPattLoadFromBuffer(ARPattHandle *pattHandle, const char *buffer)
 	@param      filename (description)
     @result     (description)
  */
-AR_EXTERN int arPattSave( ARUint8 *image, int xsize, int ysize, int pixelFormat, ARParamLTf *paramLTf,
-                int imageProcMode, ARMarkerInfo *marker_info, ARdouble pattRatio, int pattSize, const char *filename );
+// AR_EXTERN int arPattSave( ARUint8 *image, int xsize, int ysize, int pixelFormat, ARParamLTf *paramLTf,
+//                 int imageProcMode, ARMarkerInfo *marker_info, ARdouble pattRatio, int pattSize, const char *filename );
 
 /*!
     @brief   Frees (unloads) a pattern file from memory.

@@ -186,10 +186,12 @@ void ARTrackerSquare::setPatternDetectionMode(int mode)
     m_patternDetectionMode = mode;
     if (m_arHandle0) {
         arSetPatternDetectionMode(m_arHandle0, m_patternDetectionMode);
+		arSetMatrixCodeType(m_arHandle0, AR_MATRIX_CODE_3x3_PARITY65);
         ARLOGi("Pattern detection mode set to %d.\n", m_patternDetectionMode);
     }
     if (m_arHandle1) {
         arSetPatternDetectionMode(m_arHandle1, m_patternDetectionMode);
+		arSetMatrixCodeType(m_arHandle1, AR_MATRIX_CODE_3x3_PARITY65);
         ARLOGi("Pattern detection mode set to %d.\n", m_patternDetectionMode);
     }
 }

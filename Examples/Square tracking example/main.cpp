@@ -33,6 +33,8 @@
 //  POSSIBILITY OF SUCH DAMAGE.
 //
 
+//#define STATIC_IMAGE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -68,6 +70,13 @@
 #  endif
 #endif
 
+//zhenyi
+// #define STB_IMAGE_IMPLEMENTATION
+// #include "stb_image/stb_image.h"
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
+// #include "stb_image/stb_image_write.h"
+#include "ImageTracker.h"
+
 #include "draw.h"
 
 #if ARX_TARGET_PLATFORM_WINDOWS
@@ -89,6 +98,9 @@ static SDL_Window* gSDLWindow = NULL;
 static ARController* arController = NULL;
 static ARG_API drawAPI = ARG_API_None;
 
+// zhenyi
+static ImageTracker* imgTracker = NULL;
+
 static long gFrameNo = 0;
 
 struct marker {
@@ -97,7 +109,8 @@ struct marker {
 };
 static const struct marker markers[] = {
     {"hiro.patt", 80.0},
-    {"kanji.patt", 80.0}
+    {"kanji.patt", 80.0},
+	//{ "0.jpg", 80.0 },
 };
 static const int markerCount = (sizeof(markers)/sizeof(markers[0]));
 
@@ -203,6 +216,18 @@ int main(int argc, char *argv[])
         quit(-1);
     }
 
+	// zhenyi: Initialize the ImageTracker.
+#ifdef STATIC_IMAGE
+	std::string imageName = "000000.pgm";
+	imgTracker = new ImageTracker(imageName);
+	if (!imgTracker->initialiseBase()) {
+		ARLOGe("Error initialising imgTracker.\n");
+		quit(-1);
+	}
+#endif // STATIC_IMAGE
+
+	
+
 #ifdef DEBUG
     arLogLevel = AR_LOG_LEVEL_DEBUG;
 #endif
@@ -226,11 +251,33 @@ int main(int argc, char *argv[])
     arController->getSquareTracker()->setPatternDetectionMode(AR_TEMPLATE_MATCHING_MONO);
     arController->getSquareTracker()->setThresholdMode(AR_LABELING_THRESH_MODE_AUTO_BRACKETING);
 
+	// zhenyi
+	// Add trackables.
+
+#ifdef STATIC_IMAGE
+	int imgMarkerIDs[markerCount];
+	int imgMarkerModelIDs[markerCount];
+	for (int i = 0; i < markerCount; i++) {
+		std::string markerConfig = "single;" + std::string(resourcesDir) + '/' + markers[i].name + ';' + std::to_string(markers[i].height);
+		imgMarkerIDs[i] = imgTracker->addTrackable(markerConfig);
+		if (imgMarkerIDs[i] == -1) {
+			ARLOGe("Error adding marker.\n");
+			quit(-1);
+		}
+	}
+	imgTracker->getSquareTracker()->setPatternDetectionMode(AR_MATRIX_CODE_DETECTION);//AR_MATRIX_CODE_DETECTION
+	imgTracker->getSquareTracker()->setThresholdMode(AR_LABELING_THRESH_MODE_AUTO_BRACKETING);
+#endif
+
 #ifdef DEBUG
     ARLOGd("vconf is '%s'.\n", vconf);
 #endif
     // Start tracking.
     arController->startRunning(vconf, cpara, NULL, 0);
+	// zhenyi
+#ifdef STATIC_IMAGE
+	imgTracker->startRunning(vconf, cpara, NULL, 0);
+#endif
 
     // Main loop.
     bool done = false;
@@ -257,69 +304,109 @@ int main(int argc, char *argv[])
             }
          }
 
-        bool gotFrame = arController->capture();
-        if (!gotFrame) {
-            arUtilSleep(1);
-        } else {
-            //ARLOGi("Got frame %ld.\n", gFrameNo);
-            gFrameNo++;
+#ifndef STATIC_IMAGE
+	bool gotFrame = arController->capture();
+	if (!gotFrame) {
+		arUtilSleep(1);
+	} else {
+		//ARLOGi("Got frame %ld.\n", gFrameNo);
+		gFrameNo++;
+		 
+		if (!arController->update()) {
+			ARLOGe("Error in ARController::update().\n");
+			quit(-1);
+		}
+		 
+		if (contextWasUpdated) {
+		                 
+			if (!arController->drawVideoInit(0)) {
+				ARLOGe("Error in ARController::drawVideoInit().\n");
+				quit(-1);
+			}
+			if (!arController->drawVideoSettings(0, contextWidth, contextHeight, false, false, false, ARVideoView::HorizontalAlignment::H_ALIGN_CENTRE, ARVideoView::VerticalAlignment::V_ALIGN_CENTRE, ARVideoView::ScalingMode::SCALE_MODE_FIT, viewport)) {
+				ARLOGe("Error in ARController::drawVideoSettings().\n");
+				quit(-1);
+			}
+			drawSetup(drawAPI, false, false, false);
+		                 
+			drawSetViewport(viewport);
+			ARdouble projectionARD[16];
+			arController->projectionMatrix(0, 10.0f, 10000.0f, projectionARD);
+			for (int i = 0; i < 16; i++) projection[i] = (float)projectionARD[i];
+			drawSetCamera(projection, NULL);
+		                 
+			for (int i = 0; i < markerCount; i++) {
+				markerModelIDs[i] = drawLoadModel(NULL);
+			}
+			contextWasUpdated = false;
+		}
+		 
+		SDL_GL_MakeCurrent(gSDLWindow, gSDLContext);
+		 
+		// Clear the context.
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		 
+		// Display the current video frame to the current OpenGL context.
+		arController->drawVideo(0);
+		 
+		// Look for trackables, and draw on each found one.
+		for (int i = 0; i < markerCount; i++) {
+		 
+			// Find the trackable for the given trackable ID.
+			ARTrackable *marker = arController->findTrackable(markerIDs[i]);
+			float view[16];
+			if (marker->visible) {
+				//arUtilPrintMtx16(marker->transformationMatrix);
+				for (int i = 0; i < 16; i++) view[i] = (float)marker->transformationMatrix[i];
+			}
+			drawSetModel(markerModelIDs[i], marker->visible, view);
+		}
+		 
+		draw();
+		 
+		SDL_GL_SwapWindow(gSDLWindow);
+	} // if (gotFrame)
 
-            if (!arController->update()) {
-                ARLOGe("Error in ARController::update().\n");
-                quit(-1);
-            }
+#else
+		// zhenyi: load a static image
+		bool gotImage = imgTracker->capture();
+		if (!gotImage) {
+			arUtilSleep(1);
+		}
+		else {
+			imgTracker->update();
+			// TODO: similarly draw the image with the pattern
 
-            if (contextWasUpdated) {
-                
-                if (!arController->drawVideoInit(0)) {
-                    ARLOGe("Error in ARController::drawVideoInit().\n");
-                    quit(-1);
-                }
-                if (!arController->drawVideoSettings(0, contextWidth, contextHeight, false, false, false, ARVideoView::HorizontalAlignment::H_ALIGN_CENTRE, ARVideoView::VerticalAlignment::V_ALIGN_CENTRE, ARVideoView::ScalingMode::SCALE_MODE_FIT, viewport)) {
-                    ARLOGe("Error in ARController::drawVideoSettings().\n");
-                    quit(-1);
-                }
-                drawSetup(drawAPI, false, false, false);
-                
-                drawSetViewport(viewport);
-                ARdouble projectionARD[16];
-                arController->projectionMatrix(0, 10.0f, 10000.0f, projectionARD);
-                for (int i = 0; i < 16; i++) projection[i] = (float)projectionARD[i];
-                drawSetCamera(projection, NULL);
-                
-                for (int i = 0; i < markerCount; i++) {
-                    markerModelIDs[i] = drawLoadModel(NULL);
-                }
-                contextWasUpdated = false;
-            }
+			// 			std::string imageName = "000000.pgm";
+			// 			int width, height, n;
+			// 			unsigned char* image = stbi_load(imageName.c_str(), &width, &height, &n,0);
+			// rgb is now three bytes per pixel, width*height size. Or NULL if load failed.
+			// Do something with it...
+			//			stbi_write_png("output.png", width, height, n, image, n * width);
+			// try detect pattern
+			// Look for trackables, and draw on each found one.
+			for (int i = 0; i < markerCount; i++) {
 
-            SDL_GL_MakeCurrent(gSDLWindow, gSDLContext);
+				// Find the trackable for the given trackable ID.
+				ARTrackable *marker = imgTracker->findTrackable(imgMarkerIDs[i]);
+				std::cout << "found a marker:" << imgMarkerIDs[i] << "\n";
+				float view[16];
+				if (marker->visible) {
+					arUtilPrintMtx16(marker->transformationMatrix);
+					for (int i = 0; i < 16; i++) {
+						view[i] = (float)marker->transformationMatrix[i];
+					}
 
-            // Clear the context.
-            glClearColor(0.0, 0.0, 0.0, 1.0);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				}
+				//drawSetModel(markerModelIDs[i], marker->visible, view);
+			}
 
-            // Display the current video frame to the current OpenGL context.
-            arController->drawVideo(0);
+			//stbi_image_free(image);
+		}
+#endif // !STATIC_IMAGE
 
-            // Look for trackables, and draw on each found one.
-            for (int i = 0; i < markerCount; i++) {
-
-                // Find the trackable for the given trackable ID.
-                ARTrackable *marker = arController->findTrackable(markerIDs[i]);
-                float view[16];
-                if (marker->visible) {
-                    //arUtilPrintMtx16(marker->transformationMatrix);
-                    for (int i = 0; i < 16; i++) view[i] = (float)marker->transformationMatrix[i];
-                }
-                drawSetModel(markerModelIDs[i], marker->visible, view);
-            }
-
-            draw();
-            
-            SDL_GL_SwapWindow(gSDLWindow);
-        } // if (gotFrame)
-    } // while (!done)
+	} // while (!done)
 
     free(resourcesDir);
     
@@ -392,6 +479,14 @@ static void quit(int rc)
         arController->shutdown();
         delete arController;
     }
+	// zhenyi
+#ifdef STATIC_IMAGE
+	if (imgTracker) {
+		//imgTracker->drawVideoFinal(0);
+		imgTracker->shutdown();
+		delete imgTracker;
+	}
+#endif
     if (gSDLContext) {
         SDL_GL_MakeCurrent(0, NULL);
         SDL_GL_DeleteContext(gSDLContext);

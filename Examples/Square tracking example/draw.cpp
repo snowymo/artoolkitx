@@ -34,7 +34,8 @@
 //
 
 #include "draw.h"
-#include <ARX/ARController.h>
+//#include <ARX/ARController.h>
+#include "ARX/ARController.h"
 #if HAVE_GL
 #  if ARX_TARGET_PLATFORM_MACOS
 #    include <OpenGL/gl.h>
