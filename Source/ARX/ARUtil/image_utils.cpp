@@ -89,7 +89,15 @@ bool WriteImageTofile(unsigned char* data, int width, int height, int stride, st
         } else {
             return stbi_write_bmp(fileName.c_str(), (int) width, (int) height, (int) 1, data);
         }
-    }
+	}
+	else if (ext == ".jpg") {
+		if (colourImage) {
+			return stbi_write_jpg(fileName.c_str(), (int)width, (int)height, (int)4, data, 95);
+		}
+		else {
+			return stbi_write_jpg(fileName.c_str(), (int)width, (int)height, (int)1, data, 95);
+		}
+	}
     return false;
 }
 

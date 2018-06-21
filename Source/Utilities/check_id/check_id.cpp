@@ -47,7 +47,7 @@
 // ============================================================================
 
 #include <stdio.h>
-#include <string.h>
+#include <string>
 #ifdef _WIN32
 #  define snprintf _snprintf
 #endif
@@ -67,6 +67,11 @@
 #endif
 #include <Eden/EdenGLFont.h>
 #include <iostream>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image/stb_image_write.h"
 
 // ============================================================================
 //	Constants
@@ -100,10 +105,10 @@ const cutoffPhaseColours_t cutoffPhaseColours[AR_MARKER_INFO_CUTOFF_PHASE_DESCRI
 // ============================================================================
 
 // Preferences.
-static char *cpara = NULL;
+static char *cpara = NULL; // --cpara camera_para_mbp_late2013_4-3.bytes
 static const char *vconfRGB = 
 #if ARX_TARGET_PLATFORM_MACOS || ARX_TARGET_PLATFORM_IOS || ARX_TARGET_PLATFORM_LINUX || ARX_TARGET_PLATFORM_WINDOWS
-    "-format=BGRA"
+    "-module=Image" // zhenyi -format=BGRA
 #elif ARX_TARGET_PLATFORM_ANDROID
     "-format=RGBA"
 #else
@@ -224,6 +229,18 @@ int main(int argc, char *argv[])
     EdenGLFontInit(1); // contextsActiveCount=1
     EdenGLFontSetFont(EDEN_GL_FONT_ID_Stroke_Roman);
     EdenGLFontSetSize(FONT_SIZE);
+
+	// zhenyi: take care of the pgm to jpg
+	std::string imagePrefix = "HIRO";
+	std::string imageName = imagePrefix + ".jpg", jpgName = imagePrefix+"-" + ".jpg";
+	int width, height, n;
+	unsigned char * image = stbi_load(imageName.c_str(), &width, &height, &n, 0);
+	//stbi_write_png(jpgName.c_str(), width, height, n, image, n * width);
+	stbi_write_jpg(jpgName.c_str(), width, height, n, image, 95);
+	//WriteImageTofile(image, width, height, n * width, jpgName);
+	
+	std::string full_vconfRGB = (std::string(vconfRGB) + " -width=" + std::to_string(width) + " -height=" + std::to_string(height) /*+ " -format=MONO" */+ " -image=" + jpgName);
+	vconf = full_vconfRGB.c_str();
 
     startVideo();
 
