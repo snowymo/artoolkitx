@@ -66,6 +66,7 @@
 #  include <GL/gl.h>
 #endif
 #include <Eden/EdenGLFont.h>
+
 #include <iostream>
 
 // ============================================================================

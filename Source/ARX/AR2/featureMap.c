@@ -43,8 +43,6 @@
 #include <ARX/AR2/config.h>
 #include <ARX/AR2/featureSet.h>
 
-
-
 int ar2SaveFeatureMap( char *filename, char *ext, AR2FeatureMapT *featureMap )
 {
     FILE   *fp;
@@ -277,4 +275,3 @@ int ar2PrintFeatureInfo( AR2ImageT *image, AR2FeatureMapT *featureMap, int ts1, 
     ARPRINT("%3d, %3d: max_sim = %f, (max,min) = %f, %f, sd = %f\n", cx, cy, featureMap->map[cy*xsize+cx], max, min, vlen/(ts1+ts2+1));
     free( template );
     return 0;
-}

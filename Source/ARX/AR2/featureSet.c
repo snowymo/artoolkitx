@@ -176,7 +176,6 @@ int ar2FreeFeatureSet( AR2FeatureSetT **featureSet )
     return 0;
 }
 
-
 // zhenyi
 
 #include <math.h>
@@ -189,6 +188,7 @@ static int make_template(ARUint8 *imageBW, int xsize, int ysize,
 static int get_similarity(ARUint8 *imageBW, int xsize, int ysize,
 	float  *template, float  vlen, int ts1, int ts2,
 	int cx, int cy, float  *sim);
+
 
 int ar2FreeFeatureMap(AR2FeatureMapT *featureMap)
 {
@@ -349,9 +349,6 @@ AR2FeatureMapT *ar2GenFeatureMap(AR2ImageT *image,
 	return featureMap;
 	}
 
-
-
-
 AR2FeatureCoordT *ar2SelectFeature2(AR2ImageT *image, AR2FeatureMapT *featureMap,
 	int ts1, int ts2, int search_size2, int occ_size,
 	float  max_sim_thresh, float  min_sim_thresh, float  sd_thresh, int *num)
@@ -494,7 +491,6 @@ AR2FeatureCoordT *ar2SelectFeature2(AR2ImageT *image, AR2FeatureMapT *featureMap
 
 	return coord;
 	}
-
 
 static int make_template(ARUint8 *imageBW, int xsize, int ysize,
 	int cx, int cy, int ts1, int ts2, float  sd_thresh,
