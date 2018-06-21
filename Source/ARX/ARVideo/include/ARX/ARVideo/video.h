@@ -410,9 +410,9 @@ ARVIDEO_EXTERN int               arVideoGetCParamAsync  (void (*callback)(const 
 
 ARVIDEO_EXTERN int               arVideoUtilGetPixelSize(const AR_PIXEL_FORMAT arPixelFormat);
 ARVIDEO_EXTERN const char       *arVideoUtilGetPixelFormatName(const AR_PIXEL_FORMAT arPixelFormat);
-#if !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
+//#if !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
 ARVIDEO_EXTERN int               arVideoSaveImageJPEG(int w, int h, AR_PIXEL_FORMAT pixFormat, ARUint8 *pixels, const char *filename, const int quality /* 0 to 100 */, const int flipV);
-#endif // !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
+//#endif // !AR_ENABLE_MINIMIZE_MEMORY_FOOTPRINT
 
 typedef enum {
     AR_VIDEO_ASPECT_RATIO_1_1,       ///< 1.0:   "Square".

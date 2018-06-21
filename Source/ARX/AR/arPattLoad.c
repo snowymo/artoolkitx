@@ -186,7 +186,6 @@ int arPattDeactivate( ARPattHandle *pattHandle, int patno )
 }
 
 // zhenyi
-
 int arPattSave(ARUint8 *image, int xsize, int ysize, int pixelFormat, ARParamLTf *paramLTf,
 	int imageProcMode, ARMarkerInfo *marker_info, ARdouble pattRatio, int pattSize, const char *filename)
 {
