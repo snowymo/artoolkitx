@@ -35,7 +35,8 @@ set(SOURCE
     videoAspectRatio.c
     videoLuma.c
     videoRGBA.c
-    videoSaveImage.c
+	# zhenyi
+    #videoSaveImage.c
 )
 
 set(PUBLIC_HEADERS

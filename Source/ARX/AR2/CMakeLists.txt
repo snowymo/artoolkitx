@@ -30,6 +30,8 @@ set(PUBLIC_HEADERS
 set(SOURCE
     coord.c
     featureMap.c
+	# zhenyi
+	#featureMap2.c
     featureSet.c
     handle.c
     imageSet.c
