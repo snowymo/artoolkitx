@@ -218,60 +218,61 @@ AR2FeatureCoordT *ar2SelectFeature( AR2ImageT *image, AR2FeatureMapT *featureMap
     return coord;
 }
 
-int ar2PrintFeatureInfo( AR2ImageT *image, AR2FeatureMapT *featureMap, int ts1, int ts2, int search_size2, int cx, int cy )
+int ar2PrintFeatureInfo(AR2ImageT *image, AR2FeatureMapT *featureMap, int ts1, int ts2, int search_size2, int cx, int cy)
 {
-    float       *template, vlen;
-    float       max, min, sim;
-    int         xsize, ysize;
-    int         i, j;
+	float       *template, vlen;
+	float       max, min, sim;
+	int         xsize, ysize;
+	int         i, j;
 
-    if( image->xsize != featureMap->xsize || image->ysize != featureMap->ysize ) return -1;
+	if (image->xsize != featureMap->xsize || image->ysize != featureMap->ysize) return -1;
 
-    arMalloc(template, float, (ts1+ts2+1)*(ts1+ts2+1));
-    xsize = image->xsize;
-    ysize = image->ysize;
-    if( cx < 0 || cy < 0 || cx >= xsize || cy >= ysize ) {
-        free(template);
-        return -1;
-    }
+	arMalloc(template, float, (ts1 + ts2 + 1)*(ts1 + ts2 + 1));
+	xsize = image->xsize;
+	ysize = image->ysize;
+	if (cx < 0 || cy < 0 || cx >= xsize || cy >= ysize) {
+		free(template);
+		return -1;
+	}
 
-    if( featureMap->map[cy*xsize+cx] == 1.0 ) {
-        ARPRINT("%3d, %3d: max_sim = %f\n", cx, cy, featureMap->map[cy*xsize+cx]);
-        free( template );
-        return 0;
-    }
+	if (featureMap->map[cy*xsize + cx] == 1.0) {
+		ARPRINT("%3d, %3d: max_sim = %f\n", cx, cy, featureMap->map[cy*xsize + cx]);
+		free(template);
+		return 0;
+	}
 
 #if AR2_CAPABLE_ADAPTIVE_TEMPLATE
-    if( make_template( image->imgBWBlur[1], xsize, ysize, cx, cy, ts1, ts2, 0.0, template, &vlen ) < 0 ) {
+	if (make_template(image->imgBWBlur[1], xsize, ysize, cx, cy, ts1, ts2, 0.0, template, &vlen) < 0) {
 #else
-    if( make_template( image->imgBW, xsize, ysize, cx, cy, ts1, ts2, 0.0, template, &vlen ) < 0 ) {
+	if (make_template(image->imgBW, xsize, ysize, cx, cy, ts1, ts2, 0.0, template, &vlen) < 0) {
 #endif
-        free( template );
-        return -1;
-    }
+		free(template);
+		return -1;
+	}
 
-    min = 1.0f;
-    max = -1.0f;
-    ARPRINT("\n");
-    for( j = -search_size2; j <= search_size2; j++ ) {
-        for( i = -search_size2; i <= search_size2; i++ ) {
+	min = 1.0f;
+	max = -1.0f;
+	ARPRINT("\n");
+	for (j = -search_size2; j <= search_size2; j++) {
+		for (i = -search_size2; i <= search_size2; i++) {
 #if AR2_CAPABLE_ADAPTIVE_TEMPLATE
-            if( get_similarity(image->imgBWBlur[1], xsize, ysize, template, vlen, ts1, ts2, cx+i, cy+j, &sim) < 0 ) continue;
+			if (get_similarity(image->imgBWBlur[1], xsize, ysize, template, vlen, ts1, ts2, cx + i, cy + j, &sim) < 0) continue;
 #else
-            if( get_similarity(image->imgBW, xsize, ysize, template, vlen, ts1, ts2, cx+i, cy+j, &sim) < 0 ) continue;
+			if (get_similarity(image->imgBW, xsize, ysize, template, vlen, ts1, ts2, cx + i, cy + j, &sim) < 0) continue;
 #endif
 
-            if( (i*i + j*j <= search_size2*search_size2) 
-             && (i != 0 || j != 0) ) {
-                if( sim < min ) min = sim;
-                if( sim > max ) max = sim;
-            }
-            ARPRINT("%7.4f ", sim);
-        }
-        ARPRINT("\n");
-    }
-    ARPRINT("\n");
+			if ((i*i + j*j <= search_size2*search_size2)
+				&& (i != 0 || j != 0)) {
+				if (sim < min) min = sim;
+				if (sim > max) max = sim;
+			}
+			ARPRINT("%7.4f ", sim);
+		}
+		ARPRINT("\n");
+	}
+	ARPRINT("\n");
 
-    ARPRINT("%3d, %3d: max_sim = %f, (max,min) = %f, %f, sd = %f\n", cx, cy, featureMap->map[cy*xsize+cx], max, min, vlen/(ts1+ts2+1));
-    free( template );
-    return 0;
+	ARPRINT("%3d, %3d: max_sim = %f, (max,min) = %f, %f, sd = %f\n", cx, cy, featureMap->map[cy*xsize + cx], max, min, vlen / (ts1 + ts2 + 1));
+	free(template);
+	return 0;
+}
