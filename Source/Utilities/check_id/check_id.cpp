@@ -74,6 +74,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image/stb_image_write.h"
 
+// zhenyi
+#define IMAGE
+
 // ============================================================================
 //	Constants
 // ============================================================================
@@ -106,10 +109,21 @@ const cutoffPhaseColours_t cutoffPhaseColours[AR_MARKER_INFO_CUTOFF_PHASE_DESCRI
 // ============================================================================
 
 // Preferences.
+#ifndef IMAGE
+static char *cpara = "camera_para_mbp_late2013_4-3.bytes"; // --cpara camera_para_mbp_late2013_4-3.bytes
+#else
 static char *cpara = NULL; // --cpara camera_para_mbp_late2013_4-3.bytes
+#endif
+
 static const char *vconfRGB = 
 #if ARX_TARGET_PLATFORM_MACOS || ARX_TARGET_PLATFORM_IOS || ARX_TARGET_PLATFORM_LINUX || ARX_TARGET_PLATFORM_WINDOWS
-    "-module=Image" // zhenyi -format=BGRA
+#ifdef IMAGE
+"-module=Image" // zhenyi -format=BGRA  -module=Image
+#else
+"-format=BGRA" // zhenyi -format=BGRA  -module=Image
+#endif // IMAGE
+
+    
 #elif ARX_TARGET_PLATFORM_ANDROID
     "-format=RGBA"
 #else
@@ -204,7 +218,7 @@ int main(int argc, char *argv[])
     // Create a window.
     gSDLWindow = SDL_CreateWindow(argv[0],
                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                  1280, 720,
+                                  1280, 800,
                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
                                   );
     if (!gSDLWindow) {
@@ -237,11 +251,15 @@ int main(int argc, char *argv[])
 	int width, height, n;
 	unsigned char * image = stbi_load(imageName.c_str(), &width, &height, &n, 0);
 	//stbi_write_png(jpgName.c_str(), width, height, n, image, n * width);
-	stbi_write_jpg(jpgName.c_str(), width, height, n, image, 95);
+	stbi_write_jpg(jpgName.c_str(), width, height, n, image, 100);
 	//WriteImageTofile(image, width, height, n * width, jpgName);
 	
 	std::string full_vconfRGB = (std::string(vconfRGB) + " -width=" + std::to_string(width) + " -height=" + std::to_string(height) /*+ " -format=MONO" */+ " -image=" + jpgName);
+#ifdef IMAGE
 	vconf = full_vconfRGB.c_str();
+#endif // IMAGE
+
+	
 
     startVideo();
 
@@ -866,6 +884,7 @@ static void drawView(void)
         } // for k
     }
     
+	
 	// 2D overlays in video frame.
     glViewport(gViewport[0], gViewport[1], gViewport[2], gViewport[3]);
     glMatrixMode(GL_PROJECTION);
@@ -874,7 +893,7 @@ static void drawView(void)
     glMatrixMode(GL_MODELVIEW);
     glDisable(GL_LIGHTING);
     glDisable(GL_DEPTH_TEST);
-    
+	
     EdenGLFontSetViewSize(contextWidth, contextHeight);
 
     int pattDetectMode = arGetPatternDetectionMode(gARHandle);
@@ -936,36 +955,43 @@ static void drawView(void)
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
+	
+
     // Draw help text and mode.
-    if (gShowMode) {
-        printMode();
-    }
-    if (gShowHelp) {
-        if (gShowHelp == 1) {
-            printHelpKeys();
-        } else if (gShowHelp == 2) {
-            GLfloat bw = EdenGLFontGetBlockWidth((const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT);
-            bw += 12.0f; // Space for color block.
-            GLfloat bh = EdenGLFontGetBlockHeight((const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT);
-            GLfloat lineh = EdenGLFontGetSize() * EdenGLFontGetLineSpacing();
-            drawBackground(bw, bh, 2.0f, 2.0f);
-            glDisable(GL_BLEND);
-            
-            // Draw the colour block and text, line by line.
-            for (i = 0; i < AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT; i++) {
-                for (j = 0; j < 300; j += 3) {
-                    pixels[j    ] = cutoffPhaseColours[i].colour[0];
-                    pixels[j + 1] = cutoffPhaseColours[i].colour[1];
-                    pixels[j + 2] = cutoffPhaseColours[i].colour[2];
-                }
-                glRasterPos2f(2.0f, (AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT - 1 - i) * lineh + 2.0f);
-                glPixelZoom(1.0f, 1.0f);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-                glDrawPixels(10, 10, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-                EdenGLFontDrawBlock(0, NULL, (const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT, 14.0f, 2.0f, H_OFFSET_VIEW_LEFT_EDGE_TO_TEXT_LEFT_EDGE, V_OFFSET_VIEW_BOTTOM_TO_TEXT_BASELINE);
-             }
-        }
-    }
+#ifndef IMAGE
+	if (gShowMode) {
+		printMode();
+	}
+	if (gShowHelp) {
+		if (gShowHelp == 1) {
+			printHelpKeys();
+		}
+		else if (gShowHelp == 2) {
+			GLfloat bw = EdenGLFontGetBlockWidth((const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT);
+			bw += 12.0f; // Space for color block.
+			GLfloat bh = EdenGLFontGetBlockHeight((const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT);
+			GLfloat lineh = EdenGLFontGetSize() * EdenGLFontGetLineSpacing();
+			drawBackground(bw, bh, 2.0f, 2.0f);
+			glDisable(GL_BLEND);
+
+			// Draw the colour block and text, line by line.
+			for (i = 0; i < AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT; i++) {
+				for (j = 0; j < 300; j += 3) {
+					pixels[j] = cutoffPhaseColours[i].colour[0];
+					pixels[j + 1] = cutoffPhaseColours[i].colour[1];
+					pixels[j + 2] = cutoffPhaseColours[i].colour[2];
+				}
+				glRasterPos2f(2.0f, (AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT - 1 - i) * lineh + 2.0f);
+				glPixelZoom(1.0f, 1.0f);
+				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+				glDrawPixels(10, 10, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+				EdenGLFontDrawBlock(0, NULL, (const unsigned char **)arMarkerInfoCutoffPhaseDescriptions, AR_MARKER_INFO_CUTOFF_PHASE_DESCRIPTION_COUNT, 14.0f, 2.0f, H_OFFSET_VIEW_LEFT_EDGE_TO_TEXT_LEFT_EDGE, V_OFFSET_VIEW_BOTTOM_TO_TEXT_BASELINE);
+			}
+		}
+	}
+#endif // !IMAGE
+
+    
     
     SDL_GL_SwapWindow(gSDLWindow);
 }
